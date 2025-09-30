@@ -77,11 +77,9 @@ class WalletController extends Controller
 
         DB::transaction(function () use ($sender, $receiver, $amount) {
 
-            // Debita remetente
             $sender->balance -= $amount;
             $sender->save();
 
-            // Cria transação remetente
             $transferTx = Transaction::create([
                 'user_id' => $sender->id,
                 'type'    => 'transfer',
@@ -90,11 +88,9 @@ class WalletController extends Controller
                 'meta'    => ['to' => $receiver->id],
             ]);
 
-            // Credita destinatário
             $receiver->balance += $amount;
             $receiver->save();
 
-            // Cria transação destinatário
             Transaction::create([
                 'user_id' => $receiver->id,
                 'type'    => 'receive',
@@ -118,7 +114,6 @@ class WalletController extends Controller
             return back()->withErrors(['msg' => 'Esta transação já foi revertida.']);
         }
 
-        // Verifica se o usuário é participante da transação
         $isParticipant = $transaction->user_id === $user->id
             || (isset($transaction->meta['original_sender']) && $transaction->meta['original_sender'] === $user->id)
             || (isset($transaction->meta['to']) && $transaction->meta['to'] === $user->id);
@@ -131,14 +126,12 @@ class WalletController extends Controller
 
             $amount = $transaction->amount;
 
-            // Remetente e destinatário
             $sender = $transaction->type === 'transfer' ? $transaction->user
                 : (isset($transaction->meta['original_sender']) ? User::find($transaction->meta['original_sender']) : null);
 
             $receiver = $transaction->type === 'receive' ? $transaction->user
                 : (isset($transaction->meta['to']) ? User::find($transaction->meta['to']) : null);
 
-            // Ajusta saldos
             if ($transaction->type === 'deposit') {
                 $transaction->user->balance -= $amount;
                 $transaction->user->save();
@@ -154,7 +147,6 @@ class WalletController extends Controller
                 $receiver->save();
             }
 
-            // Marca transações originais como revertidas
             $relatedTransactions = Transaction::where('id', $transaction->id)
                 ->orWhere(function($q) use ($transaction) {
                     $q->where('meta->original', $transaction->id);
@@ -164,7 +156,6 @@ class WalletController extends Controller
                 $tx->update(['status' => 'reverted']);
             }
 
-            // Cria transação de reversão
             Transaction::create([
                 'user_id' => $user->id,
                 'type'    => 'reversal',
