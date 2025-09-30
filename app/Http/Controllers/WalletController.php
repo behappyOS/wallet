@@ -71,35 +71,39 @@ class WalletController extends Controller
         $sender = Auth::user();
         $receiver = User::where('email', $request->email)->first();
 
-        if ($sender->id === $receiver->id) {
-            return back()->withErrors(['email' => 'Você não pode transferir para si mesmo.']);
+        if ($sender->balance < $amount) {
+            return back()->withErrors(['msg' => 'Saldo insuficiente.']);
         }
 
-        if ($sender->balance < $request->amount) {
-            return back()->withErrors(['amount' => 'Saldo insuficiente.']);
-        }
+        DB::transaction(function () use ($sender, $receiver, $amount) {
 
-        DB::transaction(function () use ($sender, $receiver, $request) {
-            $sender->balance -= $request->amount;
+            // Debita remetente
+            $sender->balance -= $amount;
             $sender->save();
 
-            $receiver->balance += $request->amount;
-            $receiver->save();
-
-            Transaction::create([
+            // Cria transação remetente
+            $transferTx = Transaction::create([
                 'user_id' => $sender->id,
                 'type'    => 'transfer',
-                'amount'  => $request->amount,
+                'amount'  => $amount,
                 'status'  => 'completed',
                 'meta'    => ['to' => $receiver->id],
             ]);
 
+            // Credita destinatário
+            $receiver->balance += $amount;
+            $receiver->save();
+
+            // Cria transação destinatário
             Transaction::create([
                 'user_id' => $receiver->id,
                 'type'    => 'receive',
-                'amount'  => $request->amount,
+                'amount'  => $amount,
                 'status'  => 'completed',
-                'meta'    => ['from' => $sender->id],
+                'meta'    => [
+                    'original'        => $transferTx->id,
+                    'original_sender' => $sender->id
+                ],
             ]);
         });
 
@@ -110,51 +114,67 @@ class WalletController extends Controller
     {
         $user = Auth::user();
 
-        if ($transaction->user_id !== $user->id) {
-            abort(403, 'Acesso negado');
+        if ($transaction->status === 'reverted') {
+            return back()->withErrors(['msg' => 'Esta transação já foi revertida.']);
         }
 
-        if ($transaction->status !== 'completed') {
-            return back()->withErrors(['msg' => 'Esta transação já foi revertida ou está inválida.']);
+        // Verifica se o usuário é participante da transação
+        $isParticipant = $transaction->user_id === $user->id
+            || (isset($transaction->meta['original_sender']) && $transaction->meta['original_sender'] === $user->id)
+            || (isset($transaction->meta['to']) && $transaction->meta['to'] === $user->id);
+
+        if (!$isParticipant) {
+            abort(403, 'Acesso negado. Você não participa desta transação.');
         }
 
         DB::transaction(function () use ($transaction, $user) {
 
+            $amount = $transaction->amount;
+
+            // Remetente e destinatário
+            $sender = $transaction->type === 'transfer' ? $transaction->user
+                : (isset($transaction->meta['original_sender']) ? User::find($transaction->meta['original_sender']) : null);
+
+            $receiver = $transaction->type === 'receive' ? $transaction->user
+                : (isset($transaction->meta['to']) ? User::find($transaction->meta['to']) : null);
+
+            // Ajusta saldos
             if ($transaction->type === 'deposit') {
-                $user->balance -= $transaction->amount;
-                $user->save();
-            } elseif ($transaction->type === 'transfer') {
-                $user->balance += $transaction->amount;
-                $user->save();
-
-                if (isset($transaction->meta['to'])) {
-                    $receiver = User::find($transaction->meta['to']);
-                    if ($receiver) {
-                        $receiver->balance -= $transaction->amount;
-                        $receiver->save();
-
-                        Transaction::create([
-                            'user_id' => $receiver->id,
-                            'type'    => 'reversal',
-                            'amount'  => $transaction->amount,
-                            'status'  => 'completed',
-                            'meta'    => ['original' => $transaction->id],
-                        ]);
-                    }
-                }
-            } elseif ($transaction->type === 'receive') {
-                $user->balance -= $transaction->amount;
-                $user->save();
+                $transaction->user->balance -= $amount;
+                $transaction->user->save();
             }
 
-            $transaction->update(['status' => 'reverted']);
+            if ($sender) {
+                $sender->balance += $amount;
+                $sender->save();
+            }
 
+            if ($receiver) {
+                $receiver->balance -= $amount;
+                $receiver->save();
+            }
+
+            // Marca transações originais como revertidas
+            $relatedTransactions = Transaction::where('id', $transaction->id)
+                ->orWhere(function($q) use ($transaction) {
+                    $q->where('meta->original', $transaction->id);
+                })->get();
+
+            foreach ($relatedTransactions as $tx) {
+                $tx->update(['status' => 'reverted']);
+            }
+
+            // Cria transação de reversão
             Transaction::create([
                 'user_id' => $user->id,
                 'type'    => 'reversal',
-                'amount'  => $transaction->amount,
+                'amount'  => $amount,
                 'status'  => 'completed',
-                'meta'    => ['original' => $transaction->id],
+                'meta'    => [
+                    'original' => $transaction->id,
+                    'sender'   => $sender->id ?? null,
+                    'receiver' => $receiver->id ?? null,
+                ],
             ]);
         });
 
