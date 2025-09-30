@@ -21,8 +21,7 @@
             </div>
 
             <div class="col-md-6 d-flex align-items-center justify-content-center mb-3">
-                <img src="{{ asset('wallet.png') }}"
-                     alt="Wallet Animated" class="img-fluid" style="max-height: 180px;">
+                <img src="{{ asset('wallet.png') }}" alt="Wallet Animated" class="img-fluid" style="max-height: 180px;">
             </div>
         </div>
 
@@ -39,11 +38,18 @@
                         <th>Valor</th>
                         <th>Status</th>
                         <th>Data</th>
+                        <th>De / Para</th>
                         <th>Ações</th>
                     </tr>
                     </thead>
                     <tbody>
                     @forelse($transactions as $tx)
+                        @php
+                            $isParticipant = $tx->user_id === auth()->id()
+                                             || (isset($tx->meta['original_sender']) && $tx->meta['original_sender'] === auth()->id())
+                                             || (isset($tx->meta['to']) && $tx->meta['to'] === auth()->id());
+                            $canReverse = $isParticipant && $tx->status === 'completed' && $tx->type !== 'reversal';
+                        @endphp
                         <tr>
                             <td>{{ $tx->id }}</td>
                             <td>
@@ -63,10 +69,31 @@
                                 @endswitch
                             </td>
                             <td>R$ {{ number_format($tx->amount, 2, ',', '.') }}</td>
-                            <td>{{ ucfirst($tx->status) }}</td>
+                            <td>
+                                @if($tx->status === 'completed')
+                                    <span class="badge bg-success">Completo</span>
+                                @elseif($tx->status === 'reverted')
+                                    <span class="badge bg-warning text-dark">Revertido</span>
+                                @else
+                                    <span class="badge bg-secondary">{{ ucfirst($tx->status) }}</span>
+                                @endif
+                            </td>
                             <td>{{ $tx->created_at->format('d/m/Y H:i') }}</td>
                             <td>
-                                @if($tx->status === 'completed' && $tx->type !== 'reversal')
+                                @if($tx->type === 'deposit')
+                                    Depósito em conta
+                                @elseif($tx->type === 'transfer')
+                                    Para: {{ optional(\App\Models\User::find(data_get($tx->meta, 'to')))->name ?? '-' }}
+                                @elseif($tx->type === 'receive')
+                                    De: {{ optional(\App\Models\User::find(data_get($tx->meta, 'original_sender')))->name ?? '-' }}
+                                @elseif($tx->type === 'reversal')
+                                    Para: {{ optional(\App\Models\User::find(data_get($tx->meta, 'sender')))->name ?? '-' }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td>
+                                @if($canReverse)
                                     <form method="POST" action="{{ route('wallet.reverse', $tx->id) }}">
                                         @csrf
                                         @method('PATCH')
@@ -75,13 +102,13 @@
                                         </button>
                                     </form>
                                 @else
-                                    -
+                                    <button class="btn btn-sm btn-secondary" disabled>-</button>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted">Nenhuma transação encontrada.</td>
+                            <td colspan="7" class="text-center text-muted">Nenhuma transação encontrada.</td>
                         </tr>
                     @endforelse
                     </tbody>

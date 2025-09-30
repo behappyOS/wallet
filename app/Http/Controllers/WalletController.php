@@ -110,7 +110,7 @@ class WalletController extends Controller
     {
         $user = Auth::user();
 
-        if ($transaction->status === 'reverted') {
+        if ($transaction->status === 'reverted' || (isset($transaction->meta['original']) && Transaction::find($transaction->meta['original'])->status === 'reverted')) {
             return back()->withErrors(['msg' => 'Esta transação já foi revertida.']);
         }
 
@@ -118,18 +118,18 @@ class WalletController extends Controller
             || (isset($transaction->meta['original_sender']) && $transaction->meta['original_sender'] === $user->id)
             || (isset($transaction->meta['to']) && $transaction->meta['to'] === $user->id);
 
-        if (!$isParticipant) {
-            abort(403, 'Acesso negado. Você não participa desta transação.');
-        }
+        if (!$isParticipant) abort(403, 'Acesso negado.');
 
         DB::transaction(function () use ($transaction, $user) {
 
             $amount = $transaction->amount;
 
-            $sender = $transaction->type === 'transfer' ? $transaction->user
+            $sender = $transaction->type === 'transfer'
+                ? $transaction->user
                 : (isset($transaction->meta['original_sender']) ? User::find($transaction->meta['original_sender']) : null);
 
-            $receiver = $transaction->type === 'receive' ? $transaction->user
+            $receiver = $transaction->type === 'receive'
+                ? $transaction->user
                 : (isset($transaction->meta['to']) ? User::find($transaction->meta['to']) : null);
 
             if ($transaction->type === 'deposit') {
@@ -147,14 +147,11 @@ class WalletController extends Controller
                 $receiver->save();
             }
 
-            $relatedTransactions = Transaction::where('id', $transaction->id)
-                ->orWhere(function($q) use ($transaction) {
-                    $q->where('meta->original', $transaction->id);
-                })->get();
-
-            foreach ($relatedTransactions as $tx) {
-                $tx->update(['status' => 'reverted']);
+            $relatedIds = [$transaction->id];
+            if (isset($transaction->meta['original'])) {
+                $relatedIds[] = $transaction->meta['original'];
             }
+            Transaction::whereIn('id', $relatedIds)->update(['status' => 'reverted']);
 
             Transaction::create([
                 'user_id' => $user->id,
