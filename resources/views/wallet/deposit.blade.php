@@ -15,7 +15,7 @@
                             <label for="amount" class="form-label fw-semibold">Valor</label>
                             <div class="input-group">
                                 <span class="input-group-text">R$</span>
-                                <input type="number" step="0.01" min="0.01" name="amount" id="amount"
+                                <input type="text" name="amount" id="amount"
                                        class="form-control" required placeholder="0,00">
                             </div>
                         </div>

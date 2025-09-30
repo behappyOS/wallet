@@ -25,6 +25,11 @@ class WalletController extends Controller
 
     public function deposit(Request $request)
     {
+        $amount = str_replace(['.', ','], ['', '.'], $request->amount);
+        $amount = (float) $amount;
+
+        $request->merge(['amount' => $amount]);
+
         $request->validate([
             'amount' => 'required|numeric|min:0.01',
         ]);
@@ -53,6 +58,11 @@ class WalletController extends Controller
 
     public function transfer(Request $request)
     {
+        $amount = str_replace(['.', ','], ['', '.'], $request->amount);
+        $amount = (float) $amount;
+
+        $request->merge(['amount' => $amount]);
+
         $request->validate([
             'email'  => 'required|email|exists:users,email',
             'amount' => 'required|numeric|min:0.01',
