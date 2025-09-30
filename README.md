@@ -1,61 +1,115 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Wallet App – Documentação
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Sobre o Projeto
+O **Wallet App** é uma aplicação financeira desenvolvida em **Laravel 12** que simula uma **carteira digital**.  
+O sistema permite que usuários realizem operações de **depósito, transferência, recebimento e reversão de transações**, garantindo consistência dos saldos.
 
-## About Laravel
+Foi implementado seguindo boas práticas de **arquitetura limpa, segurança e padrões de código**, além de rodar com **Docker** para facilitar a execução em qualquer ambiente.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Tecnologias Utilizadas
+- **PHP 8.x**
+- **Laravel 12**
+- **MySQL** (banco de dados relacional)
+- **Docker & Docker Compose**
+- **Blade Templates (Bootstrap 5 + Bootstrap Icons)** para o frontend
+- **Padrões SOLID e boas práticas de arquitetura**
+- **Testes (Unitários e de Feature)** com PHPUnit
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Funcionalidades
+- [x] **Cadastro de usuários**
+- [x] **Autenticação de login**
+- [x] **Depósito em conta** (com validação e ajuste de saldo negativo)
+- [x] **Transferência de saldo entre usuários** (validação de saldo antes da operação)
+- [x] **Recebimento de transferências** (conta de destino)
+- [x] **Reversão de transações** (depósitos e transferências podem ser desfeitos)
+- [x] **Histórico de transações**
+- [x] **Frontend responsivo e moderno** com Blade/Bootstrap
+- [x] **Testes unitários e de integração** para garantir a consistência
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Como Executar o Projeto
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Pré-requisitos
+- **Docker** e **Docker Compose** instalados
+- Porta **8000** disponível
 
-## Laravel Sponsors
+### Clonar o repositório
+```bash
+git clone https://github.com/behappyOS/wallet.git
+cd wallet
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### Subir os containers
+```bash
+docker-compose up -d --build
+```
 
-### Premium Partners
+### Instalar dependências
+```bash
+docker-compose exec app composer install
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Configurar variáveis de ambiente
+Copie o arquivo de exemplo:
+```bash
+cp .env.example .env
+```
 
-## Contributing
+Gere a chave da aplicação:
+```bash
+docker-compose exec app php artisan key:generate
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Edite o arquivo `.env` e configure o banco de dados conforme o `docker-compose.yml`:
+```env
+DB_CONNECTION=mysql
+DB_HOST=db
+DB_PORT=3306
+DB_DATABASE=wallet
+DB_USERNAME=root
+DB_PASSWORD=root
+```
 
-## Code of Conduct
+### Executar migrações
+```bash
+docker-compose exec app php artisan migrate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Acessar a aplicação
+Abra no navegador:
+```
+http://localhost:8000
+```
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Executar Testes
+O projeto possui testes unitários e de feature. Para rodar os testes:
+```bash
+docker-compose exec app php artisan test
+```
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Estrutura do Projeto
+- `app/Http/Controllers/AuthController.php` → Autenticação (login/logout/register)
+- `app/Http/Controllers/WalletController.php` → Lógica de depósito, transferência e reversão
+- `app/Models/User.php` → Usuário e saldo
+- `app/Models/Transaction.php` → Registro de transações
+- `resources/views/` → Telas Blade (login, registro, dashboard, depósito, transferência, histórico)
+- `tests/Feature/` → Testes de integração
+- `tests/Unit/` → Testes unitários
+
+---
+
+## Segurança Implementada
+- **Autenticação protegida por sessão**
+- **Validação de inputs** no backend
+- **Proteção CSRF** em formulários
+- **Regras de autorização** (usuário só pode reverter suas próprias transações)
+- **Transações no banco (DB::transaction)** garantem atomicidade
