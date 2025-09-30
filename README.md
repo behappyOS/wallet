@@ -97,14 +97,30 @@ docker-compose exec app php artisan test
 ---
 
 ## Estrutura do Projeto
-- `app/Http/Controllers/AuthController.php` → Autenticação (login/logout/register)
-- `app/Http/Controllers/WalletController.php` → Lógica de depósito, transferência e reversão
-- `app/Models/User.php` → Usuário e saldo
-- `app/Models/Transaction.php` → Registro de transações
-- `resources/views/` → Telas Blade (login, registro, dashboard, depósito, transferência, histórico)
-- `tests/Feature/` → Testes de integração
-- `tests/Unit/` → Testes unitários
 
+- `app/Http/Controllers/AuthController.php`    → Autenticação (login / logout / register)
+- `app/Http/Controllers/WalletController.php` 
+  → Camada HTTP (orquestra requests/responses). **Delegates** para o `WalletService` (a controller NÃO contém regra de negócio).
+- `app/Http/Requests/DepositRequest.php` 
+  → Validação e normalização do input de depósito (converte máscara BR para float antes da validação).
+- `app/Http/Requests/TransferRequest.php` 
+  → Validação e normalização do input de transferência (email válido, amount convertido).
+- `app/Services/WalletService.php` 
+  → Regras de negócio: depósito, transferência, reversão (operações atômicas via `DB::transaction`, atualiza saldos e cria transações).
+- `app/Models/User.php` 
+  → Model do usuário (contém `balance` e relacionamento com `Transaction`).
+- `app/Models/Transaction.php` 
+  → Model de transações (cast `meta` => `array`, tipos: `deposit`, `transfer`, `receive`, `reversal`, `status` tracking).
+- `resources/views/` 
+  → Views Blade (login, registro, dashboard, depósito, transferência, histórico) — UI/UX moderno com Bootstrap 5.
+- `routes/web.php` 
+  → Rotas web (autenticação e rotas protegidas por `auth` para carteira).
+- `database/migrations/` 
+  → Migrations (users com `balance`, transactions, etc).
+- `tests/Feature/` 
+  → Testes de integração / fluxo (ex.: cadastro, login, depósito, transferência, reversão via HTTP).
+- `tests/Unit/` 
+  → Testes unitários (focar no `WalletService` e regras de negócio isoladas).
 ---
 
 ## Segurança Implementada

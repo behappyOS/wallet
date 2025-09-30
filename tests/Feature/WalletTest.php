@@ -127,7 +127,7 @@ class WalletTest extends TestCase
 
         $this->assertDatabaseHas('transactions', [
             'user_id' => $receiver->id,
-            'type' => 'reversal',
+            'type' => 'receive',
             'amount' => 100,
         ]);
     }
